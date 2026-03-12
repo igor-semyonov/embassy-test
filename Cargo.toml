@@ -1,0 +1,10 @@
+[workspace]
+resolver = "3"
+members = ["projects/hello-blinky"
+, "projects/intro"]
+
+[profile.release]
+debug = true
+
+[alias]
+flamegraph = "!cargo-flamegraph"
