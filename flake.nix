@@ -40,6 +40,7 @@
         probe-rs-tools
         minicom
         cargo-binutils
+        cargo-expand
         rustToolchain
         llvmPackages.libunwind
         openocd
