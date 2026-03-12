@@ -4,6 +4,7 @@
 use defmt::info;
 use defmt_rtt as _;
 use embassy_executor::Spawner;
+use embassy_futures::join::join;
 use embassy_nrf::{
     Peri,
     gpio::{AnyPin, Input, Pull},
@@ -15,25 +16,28 @@ use panic_probe as _;
 async fn main(spawner: Spawner) {
     info!("Starting main");
     let p = embassy_nrf::init(Default::default());
-    spawner.spawn(
-        button_task(
-            p.P0_14
-                .into(),
-            "A",
-        ),
-    ).unwrap();
-    spawner.spawn(
-        button_task(
-            p.P0_23
-                .into(),
-            "B",
-        ),
-    ).unwrap();
+
+    let button_a = button_task(
+        p.P0_14
+            .into(),
+        "A",
+    );
+    let button_b = button_task(
+        p.P0_23
+            .into(),
+        "B",
+    );
+    join(button_a, button_b).await;
 }
 
-#[embassy_executor::task(pool_size = 2)]
-async fn button_task(button_pin: Peri<'static, AnyPin>, id: &'static str) {
-    info!("Starting task for button {}", id);
+async fn button_task(
+    button_pin: Peri<'static, AnyPin>,
+    id: &'static str,
+) {
+    info!(
+        "Starting task for button {}",
+        id
+    );
     let mut button = Input::new(
         button_pin,
         Pull::None,
@@ -42,7 +46,10 @@ async fn button_task(button_pin: Peri<'static, AnyPin>, id: &'static str) {
         button
             .wait_for_low()
             .await;
-        info!("Button {} pushed!", id);
+        info!(
+            "Button {} pushed! (fut)",
+            id
+        );
         Timer::after_millis(50).await;
         button
             .wait_for_high()
