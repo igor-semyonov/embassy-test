@@ -1,7 +1,7 @@
 [workspace]
 resolver = "3"
 members = ["projects/hello-blinky"
-, "projects/intro", "projects/speaker"]
+, "projects/intro", "projects/juke-box", "projects/speaker"]
 
 [profile.release]
 debug = true
