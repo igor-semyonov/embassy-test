@@ -2,6 +2,7 @@
 #![no_main]
 
 // use defmt::info;
+use core::sync::atomic::{AtomicUsize, Ordering};
 use defmt_rtt as _;
 use embassy_executor::Spawner;
 use embassy_futures::select::{Either, select};
@@ -166,7 +167,7 @@ impl Song {
     }
 }
 
-static mut CURRENT_SONG_IDX: usize = 0;
+static CURRENT_SONG_IDX: AtomicUsize = AtomicUsize::new(0);
 static SONGS: &[&Song] = &[
     &LAMOUR,
     &REMEMBER_VOCAL,
@@ -202,12 +203,21 @@ async fn main(_spawner: Spawner) {
         .await;
         match race_result {
             Either::First(_) => {}
-            Either::Second(_) => unsafe {
-                CURRENT_SONG_IDX += 1;
-                if CURRENT_SONG_IDX  == SONGS.len(){
-                    CURRENT_SONG_IDX = 0;
-                }
-            },
+            Either::Second(_) => {
+                let current_song_idx = CURRENT_SONG_IDX
+                    .load(Ordering::Relaxed);
+                let new_song_idx = if current_song_idx
+                    == SONGS.len() - 1
+                {
+                    0
+                } else {
+                    current_song_idx + 1
+                };
+                CURRENT_SONG_IDX.store(
+                    new_song_idx,
+                    Ordering::Relaxed,
+                );
+            }
         };
     }
 }
@@ -219,11 +229,9 @@ async fn play_noise(
     loop {
         // reading from CURRENT_SONG_IDX should be safe in this context since the tasks aer
         // executing cooperatively
-        unsafe {
-            SONGS[CURRENT_SONG_IDX]
-                .play(speaker)
-                .await;
-        }
+        SONGS[CURRENT_SONG_IDX.load(Ordering::Relaxed)]
+            .play(speaker)
+            .await;
         button
             .wait_for_falling_edge()
             .await;
